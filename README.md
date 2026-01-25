@@ -1,6 +1,6 @@
 # InfoLine Backend API
 
-API REST Java Spring Boot pour la plateforme InfoLine - Actualités des technologies sportives.
+API REST Java Spring Boot
 
 ## Stack Technique
 
