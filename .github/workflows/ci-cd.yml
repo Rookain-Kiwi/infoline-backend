@@ -47,9 +47,6 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
     
-    outputs:
-      image-tag: ${{ steps.meta.outputs.version }}
-    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -72,7 +69,6 @@ jobs:
         SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
         VERSION="${BRANCH_NAME}-${SHORT_SHA}"
         echo "version=${VERSION}" >> $GITHUB_OUTPUT
-        echo "registry=${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_OUTPUT
     
     - name: Build and push Docker image
       env:
@@ -110,10 +106,11 @@ jobs:
       run: |
         kubectl apply -f k8s/
         kubectl delete pod -n ${{ env.K8S_NAMESPACE }} -l app=infoline-backend
-        sleep 10
-        kubectl wait --for=condition=ready pod -n ${{ env.K8S_NAMESPACE }} -l app=infoline-backend --timeout=300s
+        sleep 15
+        kubectl wait --for=condition=ready pod -n ${{ env.K8S_NAMESPACE }} -l app=infoline-backend --timeout=180s
     
     - name: Verify deployment
       run: |
+        echo "✅ Deployment successful!"
         kubectl get pods -n ${{ env.K8S_NAMESPACE }}
         kubectl get svc -n ${{ env.K8S_NAMESPACE }}
