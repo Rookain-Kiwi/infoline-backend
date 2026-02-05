@@ -109,8 +109,9 @@ jobs:
     - name: Deploy to Kubernetes
       run: |
         kubectl apply -f k8s/
-        kubectl rollout restart deployment/infoline-backend -n ${{ env.K8S_NAMESPACE }}
-        kubectl rollout status deployment/infoline-backend -n ${{ env.K8S_NAMESPACE }} --timeout=5m
+        kubectl delete pod -n ${{ env.K8S_NAMESPACE }} -l app=infoline-backend
+        sleep 10
+        kubectl wait --for=condition=ready pod -n ${{ env.K8S_NAMESPACE }} -l app=infoline-backend --timeout=300s
     
     - name: Verify deployment
       run: |
