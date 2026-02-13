@@ -1,38 +1,32 @@
 package com.infoline.backend;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.test.web.servlet.MockMvc;
 
-@RestController
-@RequestMapping("/api")
-public class HelloController {
-    
-    @Value("${app.message.welcome:Hello World}")
-    private String welcomeMessage;
-    
-    @Value("${app.message.description:API Backend}")
-    private String description;
-    
-    @GetMapping("/hello")
-    public Map<String, Object> hello() {
-        Map<String, Object> response = new HashMap<>();
-        response.put("message", welcomeMessage);
-        response.put("description", description);
-        response.put("timestamp", LocalDateTime.now());
-        response.put("status", "running");
-        return response;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@WebMvcTest(HelloController.class)
+public class HelloControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Test
+    void helloEndpointReturnsOk() throws Exception {
+        mockMvc.perform(get("/api/hello"))
+               .andExpect(status().isOk())
+               .andExpect(jsonPath("$.message").value("Hello World from InfoLine Backend!"))
+               .andExpect(jsonPath("$.status").value("running"));
     }
-    
-    @GetMapping("/health")
-    public Map<String, String> health() {
-        Map<String, String> response = new HashMap<>();
-        response.put("status", "UP");
-        response.put("service", "infoline-backend");
-        return response;
+
+    @Test
+    void healthEndpointReturnsUp() throws Exception {
+        mockMvc.perform(get("/api/health"))
+               .andExpect(status().isOk())
+               .andExpect(jsonPath("$.status").value("UP"))
+               .andExpect(jsonPath("$.service").value("infoline-backend"));
     }
 }
