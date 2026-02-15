@@ -1,3 +1,12 @@
+# ==============================================================================
+# Deployment - InfoLine Backend
+# ==============================================================================
+# Déploie l'API Spring Boot sur le cluster EKS dans le namespace infoline-backend.
+# L'image Docker est stockée dans ECR et construite par le pipeline GitHub Actions.
+#
+# Flux de déploiement :
+#   GitHub Actions → mvn test → docker build → ECR push → kubectl apply
+# ==============================================================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -7,49 +16,92 @@ metadata:
     app: infoline-backend
     version: v1
 spec:
+  # 1 replica en dev — suffisant pour la démonstration ECF.
+  # En production, on pourra augmenter à 2 ou plus pour une haute disponibilité
+  # et configurer un HorizontalPodAutoscaler.
   replicas: 1
+
+  # Le selector doit correspondre exactement aux labels du template.
+  # Kubernetes utilise ce selector pour associer le Deployment à ses pods.
   selector:
     matchLabels:
       app: infoline-backend
+
   template:
     metadata:
       labels:
         app: infoline-backend
-        version: v1
+        version: v1   # Utile si on prévoit un routing canary
     spec:
       containers:
-      - name: backend
-        image: 744804011706.dkr.ecr.eu-west-3.amazonaws.com/infoline-backend:latest
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 8080
-          name: http
-          protocol: TCP
-        env:
-        - name: JAVA_OPTS
-          value: "-Xmx128m -Xms64m"
-        - name: SERVER_PORT
-          value: "8080"
-        resources:
-          requests:
-            memory: "128Mi"
-            cpu: "50m"
-          limits:
-            memory: "256Mi"
-            cpu: "200m"
-        livenessProbe:
-          httpGet:
-            path: /actuator/health
-            port: 8080
-          initialDelaySeconds: 90
-          periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
-        readinessProbe:
-          httpGet:
-            path: /actuator/health
-            port: 8080
-          initialDelaySeconds: 60
-          periodSeconds: 5
-          timeoutSeconds: 3
-          failureThreshold: 3
+        - name: backend
+          # Image ECR — l'Account ID AWS est inclus dans l'URL du registre.
+          # Tag "latest" : pointe toujours vers le dernier build CI/CD.
+          # imagePullPolicy: Always force le pull à chaque démarrage de pod
+          # pour garantir que la version "latest" est bien la plus récente.
+          image: 744804011706.dkr.ecr.eu-west-3.amazonaws.com/infoline-backend:latest
+          imagePullPolicy: Always
+
+          ports:
+            - containerPort: 8080  # Port Tomcat embarqué (server.port dans application.properties)
+              name: http
+              protocol: TCP
+
+          env:
+            # Surcharge des options JVM au niveau pod — valeurs plus conservatives
+            # que le Dockerfile (-Xmx128m vs -Xmx256m) pour laisser de la mémoire
+            # aux autres pods sur les nodes t3.medium (4GB RAM partagés).
+            - name: JAVA_OPTS
+              value: "-Xmx128m -Xms64m"
+            - name: SERVER_PORT
+              value: "8080"
+
+          resources:
+            requests:
+              # Ressources minimales garanties par le scheduler Kubernetes.
+              # cpu: 50m suffisant pour un service peu sollicité en dev.
+              # memory: 128Mi = mémoire initiale JVM (-Xms64m + overhead JVM 64Mi)
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              # Ressources maximales — on tue le pod si la mémoire dépasse 256Mi.
+              # cpu: 200m = 20% d'un vCPU — évite qu'un pod monopolise le node.
+              memory: "256Mi"
+              cpu: "200m"
+
+          # ------------------------------------------------------------------
+          # Liveness Probe
+          # ------------------------------------------------------------------
+          # Vérifie que le pod est vivant — kubelet redémarre le pod si KO.
+          # initialDelaySeconds: 90 — Spring Boot + JVM cold start,
+          # on laisse une petite marge pour éviter des redémarrages prématurés.
+          # periodSeconds: 10 — vérification toutes les 10 secondes.
+          # failureThreshold: 3 — 3 échecs consécutifs avant redémarrage (30s).
+          # ------------------------------------------------------------------
+          livenessProbe:
+            httpGet:
+              path: /actuator/health  # Endpoint Spring Boot Actuator (HTTP 200 = vivant)
+              port: 8080
+            initialDelaySeconds: 90
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # ------------------------------------------------------------------
+          # Readiness Probe
+          # ------------------------------------------------------------------
+          # Vérifie que le pod est prêt à recevoir du trafic — le Service K8s
+          # n'envoie pas de requêtes au pod tant que cette probe se plante.
+          # initialDelaySeconds: 60 — plus court que liveness, le pod peut
+          # être "prêt" avant d'être considéré comme définitivement "vivant".
+          # periodSeconds: 5 — vérification plus fréquente pour réduire
+          # le temps d'indisponibilité lors des rolling updates.
+          # -------------------------------------------------
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3

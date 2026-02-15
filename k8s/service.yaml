@@ -1,3 +1,16 @@
+# ==============================================================================
+# Service - InfoLine Backend
+# ==============================================================================
+# Expose les pods du backend Spring Boot à l'intérieur du cluster Kubernetes.
+#
+# Flux réseau :
+# Frontend Angular (pod) → Service ClusterIP (port 80)
+#                        → Pod backend (containerPort 8080)
+#
+# ClusterIP est suffisant ici — le frontend et le backend sont dans le même
+# cluster EKS et communiquent via le réseau interne Kubernetes.
+# Pas besoin de LoadBalancer (encore un coût AWS) ni de NodePort pour ce service.
+# ==============================================================================
 apiVersion: v1
 kind: Service
 metadata:
@@ -6,11 +19,18 @@ metadata:
   labels:
     app: infoline-backend
 spec:
+  # ClusterIP : IP virtuelle interne au cluster, non accessible depuis Internet.
   type: ClusterIP
+
+  # Selector : le Service route le trafic vers tous les pods
+  # ayant le label app=infoline-backend (défini dans deployment.yaml).
   selector:
     app: infoline-backend
+
   ports:
-  - name: http
-    port: 80
-    targetPort: 8080
-    protocol: TCP
+    - name: http
+      port: 80           # Port exposé par le Service à l'intérieur du cluster
+      targetPort: 8080   # Port du conteneur (Tomcat : server.port=8080)
+      protocol: TCP
+      # Mapping standard port 80 → 8080 : convention HTTP standard,
+      # sans modifier la configuration Tomcat dans le conteneur.

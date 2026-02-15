@@ -1,9 +1,26 @@
+# ==============================================================================
+# ConfigMap - InfoLine Backend
+# ==============================================================================
+# Stocke les variables de configuration non sensibles du backend Spring Boot.
+# Injectées comme variables d'environnement dans les pods via envFrom
+# dans k8s/deployment.yaml.
+
+# ==============================================================================
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: infoline-backend-config
-  namespace: infoline-backend
+  namespace: infoline-backend  # Namespace dédié au backend (isolement K8s)
 data:
+  # Nom de l'application — cohérent avec spring.application.name
+  # dans application.properties
   APPLICATION_NAME: "infoline-backend"
+
+  # Niveau de log global — peut être surchargé sans rebuild de l'image
+  # en modifiant ce ConfigMap et en redémarrant les pods (kubectl rollout restart)
   LOG_LEVEL: "INFO"
+
+  # Environnement de déploiement — utilisé pour adapter le comportement
+  # applicatif (feature flags, verbosité des logs, etc.)
+  # Valeurs attendues : dev / staging / prod
   ENVIRONMENT: "dev"
