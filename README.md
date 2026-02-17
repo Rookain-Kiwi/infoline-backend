@@ -1,6 +1,6 @@
 # infoline-backend
 
-API REST Java Spring Boot — TP Administrateur Système DevOps (Studi).
+API REST Java Spring Boot — ECF DevOps (Studi).
 
 Déployée sur Amazon EKS via un pipeline GitHub Actions qui build, teste,
 publie l'image Docker sur ECR et déploie sur le cluster.
