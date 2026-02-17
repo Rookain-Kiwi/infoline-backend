@@ -50,7 +50,7 @@ public class HelloControllerTest {
     /**
      * Vérifie que GET /api/health retourne HTTP 200 avec status "UP".
      *
-     * Ce test garantit que le health check Kubernetes etournera bien HTTP 200 au démarrage
+     * Ce test garantit que le health check Kubernetes retournera bien HTTP 200 au démarrage
      * du pod — évitant ainsi les redémarrages intempestifs par le kubelet.
      */
     @Test
@@ -61,3 +61,9 @@ public class HelloControllerTest {
                .andExpect(jsonPath("$.service").value("infoline-backend"));
     }
 }
+
+
+
+
+
+
